@@ -43,12 +43,55 @@ h1 {
   background-color: #45a049;
 }
 
+.difficulty-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+.difficulty-btn {
+  padding: 1rem 1.5rem;
+  font-size: 1.1rem;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.difficulty-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.difficulty-info {
+  font-size: 0.85rem;
+  font-weight: normal;
+  opacity: 0.9;
+}
+
+.back-btn {
+  margin-top: 0.5rem !important;
+  background-color: #666 !important;
+}
+
+.back-btn:hover {
+  background-color: #555 !important;
+}
+
 .stats {
   display: flex;
   justify-content: space-around;
   width: 400px;
   margin-bottom: 1rem;
-  font-size: 1.2rem;
+  font-size: 1rem;
   font-weight: bold;
   color: #ffffff;
   background-color: rgba(0, 0, 0, 0.7);

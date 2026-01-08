@@ -15,6 +15,16 @@ interface Player {
   y: number
   velocityY: number
   isJumping: boolean
+  canDoubleJump: boolean
+}
+
+type Difficulty = 'easy' | 'medium' | 'hard' | 'extreme' | 'nightmare'
+
+interface DifficultySettings {
+  scrollSpeed: number
+  spawnInterval: number
+  bananaChance: number
+  maxBananaHits: number
 }
 
 const GAME_WIDTH = 400
@@ -27,11 +37,43 @@ const GRAVITY = 0.8
 const GROUND_Y = GAME_HEIGHT - 100
 const OBJECT_WIDTH = 30
 const OBJECT_HEIGHT = 30
-const SCROLL_SPEED = 3
-const SPAWN_INTERVAL = 1000
+
+const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
+  easy: {
+    scrollSpeed: 2,
+    spawnInterval: 1500,
+    bananaChance: 0.3,
+    maxBananaHits: 5,
+  },
+  medium: {
+    scrollSpeed: 3,
+    spawnInterval: 1000,
+    bananaChance: 0.4,
+    maxBananaHits: 4,
+  },
+  hard: {
+    scrollSpeed: 4,
+    spawnInterval: 800,
+    bananaChance: 0.5,
+    maxBananaHits: 3,
+  },
+  extreme: {
+    scrollSpeed: 5.5,
+    spawnInterval: 600,
+    bananaChance: 0.6,
+    maxBananaHits: 2,
+  },
+  nightmare: {
+    scrollSpeed: 7,
+    spawnInterval: 400,
+    bananaChance: 0.7,
+    maxBananaHits: 1,
+  },
+}
 
 function App() {
-  const [gameState, setGameState] = useState<'start' | 'playing' | 'gameover'>('start')
+  const [gameState, setGameState] = useState<'start' | 'difficulty' | 'playing' | 'gameover'>('start')
+  const [difficulty, setDifficulty] = useState<Difficulty>('medium')
   const [score, setScore] = useState(0)
   const [bananaHits, setBananaHits] = useState(0)
   const [player, setPlayer] = useState<Player>({
@@ -39,15 +81,19 @@ function App() {
     y: GROUND_Y,
     velocityY: 0,
     isJumping: false,
+    canDoubleJump: false,
   })
   const [objects, setObjects] = useState<GameObject[]>([])
-  const [keys, setKeys] = useState({ left: false, right: false, space: false })
+  const [keys, setKeys] = useState({ left: false, right: false })
   const gameLoopRef = useRef<number | undefined>(undefined)
   const spawnTimerRef = useRef<number | undefined>(undefined)
   const playerRef = useRef<Player>(player)
   const objectIdCounter = useRef(0)
 
-  const startGame = () => {
+  const currentSettings = DIFFICULTY_SETTINGS[difficulty]
+
+  const selectDifficulty = (diff: Difficulty) => {
+    setDifficulty(diff)
     setGameState('playing')
     setScore(0)
     setBananaHits(0)
@@ -56,13 +102,18 @@ function App() {
       y: GROUND_Y,
       velocityY: 0,
       isJumping: false,
+      canDoubleJump: false,
     })
     setObjects([])
     objectIdCounter.current = 0
   }
 
+  const startGame = () => {
+    setGameState('difficulty')
+  }
+
   const spawnObject = useCallback(() => {
-    const type = Math.random() > 0.5 ? 'banana' : 'candy'
+    const type = Math.random() > currentSettings.bananaChance ? 'candy' : 'banana'
     const x = Math.random() * (GAME_WIDTH - OBJECT_WIDTH)
     setObjects(prev => [...prev, {
       id: objectIdCounter.current++,
@@ -72,7 +123,7 @@ function App() {
       height: OBJECT_HEIGHT,
       type,
     }])
-  }, [])
+  }, [currentSettings.bananaChance])
 
   const checkCollision = useCallback((obj: GameObject, p: Player) => {
     return (
@@ -85,16 +136,34 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
+      if (e.code === 'Space' && gameState === 'playing') {
         e.preventDefault()
-        setKeys(k => ({ ...k, space: true }))
+        setPlayer(prev => {
+          // First jump from ground
+          if (!prev.isJumping) {
+            return {
+              ...prev,
+              velocityY: -JUMP_FORCE,
+              isJumping: true,
+              canDoubleJump: true,
+            }
+          }
+          // Double jump in air
+          else if (prev.canDoubleJump) {
+            return {
+              ...prev,
+              velocityY: -JUMP_FORCE,
+              canDoubleJump: false,
+            }
+          }
+          return prev
+        })
       }
       if (e.code === 'ArrowLeft') setKeys(k => ({ ...k, left: true }))
       if (e.code === 'ArrowRight') setKeys(k => ({ ...k, right: true }))
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === 'Space') setKeys(k => ({ ...k, space: false }))
       if (e.code === 'ArrowLeft') setKeys(k => ({ ...k, left: false }))
       if (e.code === 'ArrowRight') setKeys(k => ({ ...k, right: false }))
     }
@@ -106,7 +175,7 @@ function App() {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [])
+  }, [gameState])
 
   useEffect(() => {
     playerRef.current = player
@@ -119,7 +188,7 @@ function App() {
       return
     }
 
-    spawnTimerRef.current = window.setInterval(spawnObject, SPAWN_INTERVAL)
+    spawnTimerRef.current = window.setInterval(spawnObject, currentSettings.spawnInterval)
 
     const gameLoop = () => {
       setPlayer(prevPlayer => {
@@ -133,12 +202,6 @@ function App() {
           newPlayer.x += PLAYER_SPEED
         }
 
-        // Jump
-        if (keys.space && !newPlayer.isJumping) {
-          newPlayer.velocityY = -JUMP_FORCE
-          newPlayer.isJumping = true
-        }
-
         // Gravity
         newPlayer.velocityY += GRAVITY
         newPlayer.y += newPlayer.velocityY
@@ -148,6 +211,7 @@ function App() {
           newPlayer.y = GROUND_Y
           newPlayer.velocityY = 0
           newPlayer.isJumping = false
+          newPlayer.canDoubleJump = false
         }
 
         return newPlayer
@@ -158,7 +222,7 @@ function App() {
         const objectsToKeep: GameObject[] = []
         
         prevObjects.forEach(obj => {
-          const movedObj = { ...obj, y: obj.y - SCROLL_SPEED }
+          const movedObj = { ...obj, y: obj.y - currentSettings.scrollSpeed }
           
           // Skip objects that are off screen
           if (movedObj.y <= -OBJECT_HEIGHT) {
@@ -170,7 +234,7 @@ function App() {
             if (movedObj.type === 'banana') {
               setBananaHits(prev => {
                 const newHits = prev + 1
-                if (newHits >= 3) {
+                if (newHits >= currentSettings.maxBananaHits) {
                   setGameState('gameover')
                 }
                 return newHits
@@ -196,7 +260,29 @@ function App() {
       if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current)
       if (spawnTimerRef.current) clearInterval(spawnTimerRef.current)
     }
-  }, [gameState, keys, checkCollision, spawnObject])
+  }, [gameState, keys, checkCollision, spawnObject, currentSettings])
+
+  const getDifficultyLabel = (diff: Difficulty): string => {
+    const labels = {
+      easy: 'Lätt',
+      medium: 'Medel',
+      hard: 'Svår',
+      extreme: 'Extrem',
+      nightmare: 'Mardröm'
+    }
+    return labels[diff]
+  }
+
+  const getDifficultyColor = (diff: Difficulty): string => {
+    const colors = {
+      easy: '#4CAF50',
+      medium: '#2196F3',
+      hard: '#FF9800',
+      extreme: '#F44336',
+      nightmare: '#9C27B0'
+    }
+    return colors[diff]
+  }
 
   return (
     <div className="app">
@@ -206,9 +292,58 @@ function App() {
         <div className="menu">
           <p>Hoppa över bananer och samla godis!</p>
           <p>Använd vänster/höger pil för att röra dig</p>
-          <p>Använd mellanslag för att hoppa</p>
-          <p>Undvik 3 bananer för att förlora!</p>
+          <p>Använd mellanslag för att hoppa (dubbelhoppa i luften!)</p>
+          <p>Undvik för många bananer!</p>
           <button onClick={startGame}>Starta Spel</button>
+        </div>
+      )}
+
+      {gameState === 'difficulty' && (
+        <div className="menu">
+          <h2>Välj Svårighetsgrad</h2>
+          <div className="difficulty-buttons">
+            <button 
+              className="difficulty-btn"
+              style={{ backgroundColor: getDifficultyColor('easy') }}
+              onClick={() => selectDifficulty('easy')}
+            >
+              {getDifficultyLabel('easy')}
+              <span className="difficulty-info">5 bananer tillåtna</span>
+            </button>
+            <button 
+              className="difficulty-btn"
+              style={{ backgroundColor: getDifficultyColor('medium') }}
+              onClick={() => selectDifficulty('medium')}
+            >
+              {getDifficultyLabel('medium')}
+              <span className="difficulty-info">4 bananer tillåtna</span>
+            </button>
+            <button 
+              className="difficulty-btn"
+              style={{ backgroundColor: getDifficultyColor('hard') }}
+              onClick={() => selectDifficulty('hard')}
+            >
+              {getDifficultyLabel('hard')}
+              <span className="difficulty-info">3 bananer tillåtna</span>
+            </button>
+            <button 
+              className="difficulty-btn"
+              style={{ backgroundColor: getDifficultyColor('extreme') }}
+              onClick={() => selectDifficulty('extreme')}
+            >
+              {getDifficultyLabel('extreme')}
+              <span className="difficulty-info">2 bananer tillåtna</span>
+            </button>
+            <button 
+              className="difficulty-btn"
+              style={{ backgroundColor: getDifficultyColor('nightmare') }}
+              onClick={() => selectDifficulty('nightmare')}
+            >
+              {getDifficultyLabel('nightmare')}
+              <span className="difficulty-info">1 banan tillåten</span>
+            </button>
+          </div>
+          <button className="back-btn" onClick={() => setGameState('start')}>Tillbaka</button>
         </div>
       )}
 
@@ -216,7 +351,8 @@ function App() {
         <>
           <div className="stats">
             <div>Poäng: {score}</div>
-            <div>Bananer träffade: {bananaHits}/3</div>
+            <div>Svårighetsgrad: {getDifficultyLabel(difficulty)}</div>
+            <div>Bananer: {bananaHits}/{currentSettings.maxBananaHits}</div>
           </div>
           <div className="game-container">
             <div className="game-area">
@@ -249,6 +385,7 @@ function App() {
       {gameState === 'gameover' && (
         <div className="menu">
           <h2>Game Over!</h2>
+          <p>Svårighetsgrad: {getDifficultyLabel(difficulty)}</p>
           <p>Din poäng: {score}</p>
           <button onClick={startGame}>Spela Igen</button>
         </div>
