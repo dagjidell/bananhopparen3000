@@ -337,7 +337,7 @@ function App() {
 
   return (
     <div className="app">
-      <h1>Bananhopparen 3000</h1>
+      {gameState !== 'playing' && <h1>Bananhopparen 3000</h1>}
       
       {gameState === 'start' && (
         <div className="menu">
@@ -399,21 +399,23 @@ function App() {
       )}
 
       {gameState === 'playing' && (
-        <>
-          <div className="stats">
-            <div>Poäng: {score}</div>
-            <div>Svårighetsgrad: {getDifficultyLabel(difficulty)}</div>
-            <div>Bananer: {bananaHits}/{currentSettings.maxBananaHits}</div>
-          </div>
-          <div className="game-container">
-            <div 
-              className="game-area"
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-            >
-              <div className="touch-indicator left">◀</div>
-              <div className="touch-indicator right">▶</div>
+        <div className="game-container">
+          <div 
+            className="game-area"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            <div className="game-overlay">
+              <h1 className="game-title">Bananhopparen 3000</h1>
+              <div className="stats">
+                <div>Poäng: {score}</div>
+                <div>Svårighetsgrad: {getDifficultyLabel(difficulty)}</div>
+                <div>Bananer: {bananaHits}/{currentSettings.maxBananaHits}</div>
+              </div>
+            </div>
+            <div className="touch-indicator left">◀</div>
+            <div className="touch-indicator right">▶</div>
               <div
                 className="player"
                 style={{
@@ -437,7 +439,6 @@ function App() {
               ))}
             </div>
           </div>
-        </>
       )}
 
       {gameState === 'gameover' && (
