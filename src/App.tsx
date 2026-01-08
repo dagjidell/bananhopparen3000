@@ -43,6 +43,7 @@ function App() {
   const [keys, setKeys] = useState({ left: false, right: false, space: false })
   const gameLoopRef = useRef<number | undefined>(undefined)
   const spawnTimerRef = useRef<number | undefined>(undefined)
+  const playerRef = useRef<Player>(player)
 
   const startGame = () => {
     setGameState('playing')
@@ -104,6 +105,10 @@ function App() {
   }, [])
 
   useEffect(() => {
+    playerRef.current = player
+  }, [player])
+
+  useEffect(() => {
     if (gameState !== 'playing') {
       if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current)
       if (spawnTimerRef.current) clearInterval(spawnTimerRef.current)
@@ -145,14 +150,20 @@ function App() {
       })
 
       setObjects(prevObjects => {
-        const updatedObjects = prevObjects
-          .map(obj => ({ ...obj, y: obj.y - SCROLL_SPEED }))
-          .filter(obj => obj.y > -OBJECT_HEIGHT)
-
-        // Check collisions
-        updatedObjects.forEach((obj, index) => {
-          if (checkCollision(obj, player)) {
-            if (obj.type === 'banana') {
+        // Check collisions and filter out collided objects
+        const objectsToKeep: GameObject[] = []
+        
+        prevObjects.forEach(obj => {
+          const movedObj = { ...obj, y: obj.y - SCROLL_SPEED }
+          
+          // Skip objects that are off screen
+          if (movedObj.y <= -OBJECT_HEIGHT) {
+            return
+          }
+          
+          // Check collision with current player position
+          if (checkCollision(movedObj, playerRef.current)) {
+            if (movedObj.type === 'banana') {
               setBananaHits(prev => {
                 const newHits = prev + 1
                 if (newHits >= 3) {
@@ -160,14 +171,16 @@ function App() {
                 }
                 return newHits
               })
-            } else if (obj.type === 'candy') {
+            } else if (movedObj.type === 'candy') {
               setScore(prev => prev + 10)
             }
-            updatedObjects.splice(index, 1)
+            // Don't add collided object to the list
+          } else {
+            objectsToKeep.push(movedObj)
           }
         })
 
-        return updatedObjects
+        return objectsToKeep
       })
 
       gameLoopRef.current = requestAnimationFrame(gameLoop)
@@ -179,7 +192,7 @@ function App() {
       if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current)
       if (spawnTimerRef.current) clearInterval(spawnTimerRef.current)
     }
-  }, [gameState, keys, player, checkCollision, spawnObject])
+  }, [gameState, keys, checkCollision, spawnObject])
 
   return (
     <div className="app">
