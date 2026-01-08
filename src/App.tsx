@@ -89,6 +89,8 @@ function App() {
   const spawnTimerRef = useRef<number | undefined>(undefined)
   const playerRef = useRef<Player>(player)
   const objectIdCounter = useRef(0)
+  const lastTapTime = useRef(0)
+  const touchStartX = useRef(0)
 
   const currentSettings = DIFFICULTY_SETTINGS[difficulty]
 
@@ -134,30 +136,35 @@ function App() {
     )
   }, [])
 
+  const handleJump = useCallback(() => {
+    if (gameState !== 'playing') return
+    setPlayer(prev => {
+      // First jump from ground
+      if (!prev.isJumping) {
+        return {
+          ...prev,
+          velocityY: -JUMP_FORCE,
+          isJumping: true,
+          canDoubleJump: true,
+        }
+      }
+      // Double jump in air
+      else if (prev.canDoubleJump) {
+        return {
+          ...prev,
+          velocityY: -JUMP_FORCE,
+          canDoubleJump: false,
+        }
+      }
+      return prev
+    })
+  }, [gameState])
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && gameState === 'playing') {
+      if (e.code === 'Space') {
         e.preventDefault()
-        setPlayer(prev => {
-          // First jump from ground
-          if (!prev.isJumping) {
-            return {
-              ...prev,
-              velocityY: -JUMP_FORCE,
-              isJumping: true,
-              canDoubleJump: true,
-            }
-          }
-          // Double jump in air
-          else if (prev.canDoubleJump) {
-            return {
-              ...prev,
-              velocityY: -JUMP_FORCE,
-              canDoubleJump: false,
-            }
-          }
-          return prev
-        })
+        handleJump()
       }
       if (e.code === 'ArrowLeft') setKeys(k => ({ ...k, left: true }))
       if (e.code === 'ArrowRight') setKeys(k => ({ ...k, right: true }))
@@ -175,7 +182,51 @@ function App() {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
+  }, [handleJump])
+
+  // Touch controls
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (gameState !== 'playing') return
+    const touch = e.touches[0]
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = touch.clientX - rect.left
+    touchStartX.current = x
+
+    // Detect double tap for jump
+    const currentTime = Date.now()
+    const tapGap = currentTime - lastTapTime.current
+    if (tapGap < 300 && tapGap > 0) {
+      handleJump()
+    }
+    lastTapTime.current = currentTime
+
+    // Set movement based on which side was tapped
+    const centerX = rect.width / 2
+    if (x < centerX) {
+      setKeys(k => ({ ...k, left: true, right: false }))
+    } else {
+      setKeys(k => ({ ...k, left: false, right: true }))
+    }
+  }, [gameState, handleJump])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (gameState !== 'playing') return
+    const touch = e.touches[0]
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = touch.clientX - rect.left
+
+    // Update movement based on current touch position
+    const centerX = rect.width / 2
+    if (x < centerX) {
+      setKeys(k => ({ ...k, left: true, right: false }))
+    } else {
+      setKeys(k => ({ ...k, left: false, right: true }))
+    }
   }, [gameState])
+
+  const handleTouchEnd = useCallback(() => {
+    setKeys({ left: false, right: false })
+  }, [])
 
   useEffect(() => {
     playerRef.current = player
@@ -291,8 +342,8 @@ function App() {
       {gameState === 'start' && (
         <div className="menu">
           <p>Hoppa över bananer och samla godis!</p>
-          <p>Använd vänster/höger pil för att röra dig</p>
-          <p>Använd mellanslag för att hoppa (dubbelhoppa i luften!)</p>
+          <p><strong>Tangentbord:</strong> Pilar för rörelse, mellanslag för hopp</p>
+          <p><strong>Touch:</strong> Tryck på sidorna för rörelse, dubbeltryck för hopp</p>
           <p>Undvik för många bananer!</p>
           <button onClick={startGame}>Starta Spel</button>
         </div>
@@ -355,7 +406,14 @@ function App() {
             <div>Bananer: {bananaHits}/{currentSettings.maxBananaHits}</div>
           </div>
           <div className="game-container">
-            <div className="game-area">
+            <div 
+              className="game-area"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
+              <div className="touch-indicator left">◀</div>
+              <div className="touch-indicator right">▶</div>
               <div
                 className="player"
                 style={{

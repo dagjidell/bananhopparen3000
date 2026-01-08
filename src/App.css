@@ -114,6 +114,33 @@ h1 {
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  touch-action: none;
+  user-select: none;
+}
+
+.touch-indicator {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 2rem;
+  color: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+  z-index: 5;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.touch-indicator.left {
+  left: 20px;
+}
+
+.touch-indicator.right {
+  right: 20px;
+}
+
+@media (hover: hover) {
+  .touch-indicator {
+    display: none;
+  }
 }
 
 .player {
@@ -158,5 +185,47 @@ h1 {
   }
   50% {
     transform: scale(1.2);
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+  .app {
+    padding: 0.5rem;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .menu {
+    max-width: 90vw;
+    padding: 1.5rem;
+  }
+
+  .menu p {
+    font-size: 0.9rem;
+  }
+
+  .stats {
+    width: 90vw;
+    max-width: 400px;
+    font-size: 0.85rem;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .game-area {
+    width: 90vw;
+    max-width: 400px;
+    height: calc(90vw * 1.5);
+    max-height: 600px;
+  }
+}
+
+@media (max-height: 700px) and (orientation: portrait) {
+  .game-area {
+    height: 65vh;
   }
 }
