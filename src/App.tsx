@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import './App.css'
 
 interface GameObject {
+  id: number
   x: number
   y: number
   width: number
@@ -44,6 +45,7 @@ function App() {
   const gameLoopRef = useRef<number | undefined>(undefined)
   const spawnTimerRef = useRef<number | undefined>(undefined)
   const playerRef = useRef<Player>(player)
+  const objectIdCounter = useRef(0)
 
   const startGame = () => {
     setGameState('playing')
@@ -56,12 +58,14 @@ function App() {
       isJumping: false,
     })
     setObjects([])
+    objectIdCounter.current = 0
   }
 
   const spawnObject = useCallback(() => {
     const type = Math.random() > 0.5 ? 'banana' : 'candy'
     const x = Math.random() * (GAME_WIDTH - OBJECT_WIDTH)
     setObjects(prev => [...prev, {
+      id: objectIdCounter.current++,
       x,
       y: GAME_HEIGHT,
       width: OBJECT_WIDTH,
@@ -225,9 +229,9 @@ function App() {
               >
                 🏃
               </div>
-              {objects.map((obj, index) => (
+              {objects.map(obj => (
                 <div
-                  key={index}
+                  key={obj.id}
                   className={`object ${obj.type}`}
                   style={{
                     left: `${obj.x}px`,
